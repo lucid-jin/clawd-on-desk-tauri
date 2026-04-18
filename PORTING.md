@@ -67,13 +67,23 @@ macOS-only 타깃. 원본: https://github.com/rullerzhou-afk/clawd-on-desk
 
 ---
 
-## M4. 시스템 트레이 + 메뉴
-- [ ] Tauri `tray-icon` API 사용
-- [ ] 트레이 아이콘 (`assets/tray-icon.png`)
-- [ ] 메뉴: Sleep/Wake, Mini Mode, Settings, Show Dock, Language, Quit
-- [ ] 우클릭 메뉴 (render창에서)
-- [ ] `app.setActivationPolicy("accessory")` macOS-specific (objc2)
-- [ ] 커밋: `feat(m4): tray icon and context menu`
+## M4. 시스템 트레이 + 메뉴 ✅
+- [x] `tauri` 크레이트 `tray-icon` + `image-png` feature 활성화
+- [x] `src-tauri/src/tray.rs` — TrayIconBuilder, 메뉴 구성
+- [x] `include_image!` 매크로로 `src/assets/tray-iconTemplate.png` 임베드 (`Image::from_bytes`는 v2에 없음)
+- [x] 메뉴: Sleep/Wake (DND), Show/Hide Pet, Hide Dock Icon, Quit
+- [x] `app.set_activation_policy(ActivationPolicy::Accessory)` — 시작 시 자동 Dock 숨김
+- [x] DND 토글: `SharedState.toggle_dnd()` → `handle_incoming`가 이벤트 silent drop → 펫 sleeping 유지
+- [ ] 우클릭 메뉴 (pet 창) — M7로 미룸 (context menu는 click handling과 묶어서)
+- [ ] Mini Mode 메뉴 항목 — M8에서 추가
+- [ ] Settings 메뉴 항목 — M9에서 추가
+- [ ] 언어 스위치 — i18n 포팅 때 (M9 이후)
+
+**학습 메모**
+- Tauri v2 `include_image!()` 매크로는 컴파일 타임 PNG 임베드. 런타임 `Image::from_path`도 있지만 include_image가 더 간결.
+- `app.try_state::<T>()`는 `Manager` 트레이트 메서드 — `use tauri::Manager;` 필수.
+- `set_activation_policy`는 `#[cfg(target_os = "macos")]` 게이트 필요.
+- Template PNG (파일명 `*Template.png`)로 저장하면 macOS가 자동으로 다크/라이트 모드 대응.
 
 ---
 

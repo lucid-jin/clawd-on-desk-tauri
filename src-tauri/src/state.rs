@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Runtime};
 
 pub const PRIORITY: &[(&str, u8)] = &[
     ("error", 8),
@@ -231,16 +231,47 @@ pub struct IncomingEvent {
 /// Shared state machine + app handle for auto-return timer bookkeeping.
 pub struct SharedState {
     pub sm: Mutex<StateMachine>,
+    pub dnd: Mutex<bool>,
 }
 
 impl SharedState {
     pub fn new() -> Self {
         Self {
             sm: Mutex::new(StateMachine::new()),
+            dnd: Mutex::new(false),
         }
     }
 
+    pub fn toggle_dnd(&self) -> bool {
+        let mut g = self.dnd.lock().unwrap();
+        *g = !*g;
+        *g
+    }
+
+    pub fn is_dnd(&self) -> bool {
+        *self.dnd.lock().unwrap()
+    }
+
+    /// Force-emit current display without changing state (used after DND toggle).
+    pub fn notify_resolve<R: Runtime>(&self, app: &AppHandle<R>) {
+        let disp = if self.is_dnd() {
+            DisplayState {
+                state: "sleeping".into(),
+                subagent_count: 0,
+                session_count: 0,
+            }
+        } else {
+            self.sm.lock().unwrap().current()
+        };
+        let _ = app.emit("display-state", &disp);
+    }
+
     pub fn handle_incoming(&self, app: &AppHandle, incoming: IncomingEvent) {
+        if self.is_dnd() {
+            // In DND mode we silently drop incoming events — pet stays asleep.
+            return;
+        }
+
         let (change, scheduled) = {
             let mut sm = self.sm.lock().unwrap();
             let change = sm.apply_event(incoming.clone());
