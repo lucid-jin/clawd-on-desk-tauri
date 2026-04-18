@@ -209,10 +209,63 @@ macOS-only 타깃. 원본: https://github.com/rullerzhou-afk/clawd-on-desk
 
 **현재 위치**: M1–M10 MVP 모두 완료 (M5는 기존 훅 자동 연결로 커버). DMG 24MB 생성됨.
 
-**남은 폴리시 (M11+)** — 실사용에서 부족함 느낄 순서대로:
-1. 권한 버블 **suggestion 버튼** ("Always allow Read", "Accept all edits")
-2. 권한 버블 **스택 배치** (다중 요청 동시 처리)
-3. 설정에 **언어 스위치** (i18n 포팅)
-4. 설정에 **에이전트 on/off 토글** (per-agent)
-5. **테마 선택** (theme-loader 전체 포팅 — 제일 큰 작업)
-6. **업데이터 + Universal binary** + GitHub Actions 릴리즈
+---
+
+## M11+ 폴리시 로드맵
+
+원본 우클릭 메뉴 기준으로 비교하면 아직 많이 빈약. 우선순위대로.
+
+### M11. Pet 우클릭 context menu
+원본: 비율/미니/잠자기/세션/테마/메뉴바/Dock/설정/단축키/종료 다 있음. 우리는 현재 우클릭 기본 메뉴 차단만 돼있음.
+- [ ] pet 창에서 right-click → 커스텀 메뉴 (트레이 메뉴 재사용)
+- [ ] **세션 서브메뉴** — 활성 세션 목록 + 클릭 시 터미널 focus (원본 `focus.js`의 osascript 호출 포팅)
+- [ ] 세션 개수 표시 "세션 (N)"
+- [ ] 각 세션의 cwd + 에이전트 표시
+
+### M12. 권한 버블 확장
+- [ ] **Suggestion 버튼** — "Always allow Read", "Accept all edits" 등 (permission_suggestions 필드)
+- [ ] 여러 버블 **스택 배치** — 우하단에서 위로 쌓기, 각 버블 높이 IPC 보고
+- [ ] 글로벌 단축키 `Ctrl+Shift+Y` (Allow), `Ctrl+Shift+N` (Deny)
+- [ ] 클라이언트 disconnect 감지 → 자동 dismiss (axum `on_disconnect`)
+- [ ] tool_input rich preview: file_path → 파일명, command → 구문 하이라이트, Edit → diff 미리보기
+
+### M13. i18n (en / ko / zh)
+- [ ] 원본 `src/i18n.js` 문자열 테이블 포팅 → Rust const map
+- [ ] 트레이/설정/버블 모든 UI 텍스트 t(key) 치환
+- [ ] 설정에 언어 선택 드롭다운
+- [ ] 언어 변경 시 트레이 메뉴 재생성
+
+### M14. Pet 크기 (비율) 선택
+- [ ] 트레이/설정/우클릭 메뉴에 S/M/L 항목 (원본: Small 100, Medium 150, Large 200)
+- [ ] 창 resize + SVG scale 적용
+- [ ] prefs에 size 저장
+
+### M15. 에이전트 per-agent 토글
+- [ ] 설정에 Claude Code / Codex / Cursor / Gemini / Kiro / Copilot / opencode 각각 on/off
+- [ ] `SharedState.handle_incoming`에서 비활성화된 에이전트 이벤트 필터링
+- [ ] 각 에이전트별 permission-enabled 토글
+
+### M16. 전환 단축키 (Cmd+Shift+Opt+C)
+- [ ] 글로벌 단축키로 pet 보이기/숨기기
+- [ ] 설정에서 커스터마이즈 가능
+
+### M17. 테마 시스템
+가장 큰 작업. 원본 `theme-loader.js` 1400줄.
+- [ ] theme.json 파싱 (Rust serde)
+- [ ] 필수 state 검증, variant merge, capability-aware overrides
+- [ ] SVG 소독 (DANGEROUS_TAGS 필터)
+- [ ] 설정에 테마 카드 목록
+- [ ] 사용자 테마 디렉토리 (`~/Library/Application Support/...`)
+
+### M18. 부가 기능
+- [ ] 시작 시 자동 실행 (Login Item) + prefs 토글
+- [ ] 소리 효과 (complete.mp3 / confirm.mp3) + 음소거 토글
+- [ ] Idle → sleep 시퀀스 (20s idle-look → 60s yawn → doze → collapse → sleep)
+- [ ] 커서 따라 눈알 (창 밖 커서도 — 현재는 창 안에서만)
+- [ ] Update bubble (electron-updater → tauri-plugin-updater)
+
+### M19. 배포 파이프라인
+- [ ] Universal binary (arm64 + x86_64)
+- [ ] GitHub Actions release workflow
+- [ ] 코드 사이닝 + notarization
+- [ ] `tauri-plugin-updater` + signing key 관리
