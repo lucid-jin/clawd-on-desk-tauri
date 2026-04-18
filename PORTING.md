@@ -109,12 +109,20 @@ macOS-only 타깃. 원본: https://github.com/rullerzhou-afk/clawd-on-desk
 
 ---
 
-## M7. 드래그 / 클릭 / 이중 창
-- [ ] Pointer Capture API로 드래그 (웹뷰에서 가능, 원본과 동일)
-- [ ] 더블클릭 → poke 반응, 4연타 → flail 반응
-- [ ] **이중 창 구조 필요한지 맥에서 테스트** — click-through만 `setIgnoresMouseEvents`로 토글 가능하면 단일 창으로 OK
-- [ ] 단일 창 불가 시 hit window 별도 생성
-- [ ] 커밋: `feat(m7): drag and click reactions`
+## M7. 드래그 / 클릭 / 이중 창 ✅
+- [x] Pointer events 기반 3px threshold 드래그 + Tauri `startDragging()` 호출
+- [x] 드래그 중 `clawd-react-drag.svg` 표시
+- [x] 더블클릭 → `react-left/right` (위치 기반 좌/우 선택), 4연타 → `react-double`
+- [x] 반응 SVG는 2.5초 유지 후 마지막 display state로 복귀 (reaction guard로 중간 state-change 흡수)
+- [x] 우클릭 기본 메뉴 차단 (커스텀 context menu는 M9에서)
+- [x] `on_window_event` Moved → `prefs::save()` 즉시 저장
+- [x] 시작 시 `prefs::load()` → `win.set_position()` 복원
+- [x] **이중 창 불필요 확인** — 맥 WebKit에서 transparent + pointer events + startDragging 전부 단일 창으로 OK. 원본이 `hitWin` 만든 건 Windows 포커스 버그 우회였고, Win 안 지원하니 단순화 성공.
+
+**학습 메모**
+- Tauri v2 JS API: `window.__TAURI__.webviewWindow.getCurrentWebviewWindow().startDragging()` — 이걸 capability `core:window:allow-start-dragging`로 허용해야 함.
+- `window.outer_position()` 반환값은 **물리 픽셀**. scale_factor로 나눠야 logical 좌표 얻음 (재시작 시 복원에도 logical 사용).
+- 드래그 시작은 IPC 왕복(JS → Rust → OS)이라 ~50ms 지연 감지됨. 정상. 원본 Electron도 마찬가지지만 preload 방식이라 약간 빠름.
 
 ---
 

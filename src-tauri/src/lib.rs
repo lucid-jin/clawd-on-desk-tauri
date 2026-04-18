@@ -1,9 +1,10 @@
+mod prefs;
 mod server;
 mod state;
 mod tray;
 
 use state::SharedState;
-use tauri::Manager;
+use tauri::{LogicalPosition, Manager, Position};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -20,9 +21,17 @@ pub fn run() {
         .setup(|app| {
             server::spawn(app.handle().clone());
             tray::build(app.handle())?;
+
+            // Restore saved window position (if any).
+            let saved = prefs::load();
+            if let (Some(x), Some(y)) = (saved.x, saved.y) {
+                if let Some(win) = app.get_webview_window("pet") {
+                    let _ = win.set_position(Position::Logical(LogicalPosition::new(x as f64, y as f64)));
+                }
+            }
+
             #[cfg(target_os = "macos")]
             {
-                // Start hidden from Dock by default — pet lives in the tray.
                 let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
                 if let Some(state) = app.try_state::<tray::DockState>() {
                     *state.hidden.lock().unwrap() = true;
@@ -30,9 +39,19 @@ pub fn run() {
             }
             Ok(())
         })
-        .on_window_event(|_window, event| {
-            if let tauri::WindowEvent::Destroyed = event {
-                server::cleanup();
+        .on_window_event(|window, event| {
+            match event {
+                tauri::WindowEvent::Destroyed => server::cleanup(),
+                tauri::WindowEvent::Moved(_) => {
+                    // Persist position on every move. Cheap enough for a pet window.
+                    if let Ok(pos) = window.outer_position() {
+                        let scale = window.scale_factor().unwrap_or(1.0);
+                        let x = (pos.x as f64 / scale) as i32;
+                        let y = (pos.y as f64 / scale) as i32;
+                        prefs::save(&prefs::WindowPrefs { x: Some(x), y: Some(y) });
+                    }
+                }
+                _ => {}
             }
         })
         .run(tauri::generate_context!())
