@@ -135,12 +135,15 @@ macOS-only 타깃. 원본: https://github.com/rullerzhou-afk/clawd-on-desk
 
 ---
 
-## M8. 미니 모드
-- [ ] 우측 엣지 스냅 (SNAP_TOLERANCE=30px)
-- [ ] 크랩 워크 애니메이션 (이미 `mini-crabwalk.svg` 존재)
-- [ ] 포물선 점프 (`animateWindowParabola`)
-- [ ] Peek on hover
-- [ ] 커밋: `feat(m8): mini mode`
+## M8. 미니 모드 ✅ (MVP)
+- [x] `src-tauri/src/mini.rs` — 멀티 모니터 감지 + 우측 엣지 스냅 + `MiniState`
+- [x] 드래그 release 시 `maybe_snap_right_cmd` 호출 → 우측 30px 이내면 자동 스냅
+- [x] 트레이 메뉴 "Toggle Mini Mode" → 수동 진입/탈출
+- [x] 렌더러: `MINI_STATE_MAP` + `MINI_STATE_SVG`로 미니 변형 SVG 선택
+- [x] 미니 중 state 매핑: notification→mini-alert, attention→mini-happy, 나머지→mini-idle
+- [ ] Peek on hover — 나중 (mouseenter 감지 + 창 슬라이드)
+- [ ] 크랩 워크 / 포물선 점프 트랜지션 — 폴리시, 나중
+- [ ] 미니 mode 상태 prefs 저장 — 재시작 후 복원
 
 ---
 

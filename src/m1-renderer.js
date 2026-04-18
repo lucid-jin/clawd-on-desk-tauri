@@ -35,7 +35,34 @@ const STATE_SVG = {
   "react-drag": "clawd-react-drag.svg",
 };
 
-const EYE_TRACKING_STATES = new Set(["idle"]);
+const EYE_TRACKING_STATES = new Set(["idle", "mini-idle"]);
+
+const MINI_STATE_MAP = {
+  idle: "mini-idle",
+  thinking: "mini-idle",
+  typing: "mini-idle",
+  working: "mini-idle",
+  juggling: "mini-idle",
+  conducting: "mini-idle",
+  building: "mini-idle",
+  carrying: "mini-idle",
+  sweeping: "mini-idle",
+  attention: "mini-happy",
+  happy: "mini-happy",
+  notification: "mini-alert",
+  error: "mini-alert",
+  sleeping: "mini-sleep",
+};
+
+let miniActive = false;
+
+const MINI_STATE_SVG = {
+  "mini-idle": "clawd-mini-idle.svg",
+  "mini-alert": "clawd-mini-alert.svg",
+  "mini-happy": "clawd-mini-happy.svg",
+  "mini-sleep": "clawd-mini-sleep.svg",
+  "mini-peek": "clawd-mini-peek.svg",
+};
 
 const IDS = { eyes: "eyes-js", body: "body-js", shadow: "shadow-js" };
 
@@ -62,12 +89,13 @@ clawdEl.addEventListener("load", () => {
 });
 
 function swapSvg(state) {
-  const file = STATE_SVG[state];
+  const resolved = miniActive ? (MINI_STATE_MAP[state] || "mini-idle") : state;
+  const file = (miniActive ? MINI_STATE_SVG[resolved] : STATE_SVG[resolved]);
   if (!file) {
-    console.warn("[m3] no SVG mapping for state:", state);
+    console.warn("[m3] no SVG mapping for state:", state, "mini:", miniActive);
     return;
   }
-  currentState = state;
+  currentState = resolved;
   clawdEl.setAttribute("data", BASE + file);
 }
 
@@ -98,15 +126,18 @@ if (window.__TAURI__ && window.__TAURI__.event) {
   window.__TAURI__.event.listen("display-state", (evt) => {
     const s = evt.payload && evt.payload.state;
     console.log("[m3] DISPLAY", evt.payload);
+    if (s) lastDisplayState = s;
     // Don't overwrite an active reaction
-    if (reactionActive) {
-      lastDisplayState = s;
-      return;
-    }
-    if (s && s !== currentState) swapSvg(s);
+    if (reactionActive) return;
+    if (s) swapSvg(s);
   });
   window.__TAURI__.event.listen("permission-request", (evt) => {
     console.log("[m2] permission-request", evt.payload);
+  });
+  window.__TAURI__.event.listen("mini-state", (evt) => {
+    miniActive = !!evt.payload;
+    console.log("[m8] mini-state =", miniActive);
+    swapSvg(lastDisplayState || "idle");
   });
   console.log("[m2] Tauri event listeners registered");
 } else {
@@ -170,11 +201,20 @@ container.addEventListener("pointermove", async (ev) => {
   }
 });
 
-container.addEventListener("pointerup", (ev) => {
+container.addEventListener("pointerup", async (ev) => {
   const wasDrag = dragging;
   dragStart = null;
   dragging = false;
-  if (wasDrag) return;
+  if (wasDrag) {
+    // After drag release, check edge snap
+    try {
+      const snapped = await window.__TAURI__.core.invoke("maybe_snap_right_cmd");
+      if (snapped) console.log("[m8] snapped to right edge");
+    } catch (err) {
+      console.warn("[m8] snap check failed", err);
+    }
+    return;
+  }
 
   // Treat as click — record for multi-click detection
   const now = Date.now();

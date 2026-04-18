@@ -1,9 +1,11 @@
+mod mini;
 mod permission;
 mod prefs;
 mod server;
 mod state;
 mod tray;
 
+use mini::MiniState;
 use permission::PendingPermissions;
 use state::SharedState;
 use tauri::{LogicalPosition, Manager, Position};
@@ -14,7 +16,13 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .manage(SharedState::new())
         .manage(PendingPermissions::new())
-        .invoke_handler(tauri::generate_handler![permission::resolve_permission]);
+        .manage(MiniState::new())
+        .invoke_handler(tauri::generate_handler![
+            permission::resolve_permission,
+            mini::maybe_snap_right_cmd,
+            mini::exit_mini_cmd,
+            mini::mini_active,
+        ]);
 
     #[cfg(target_os = "macos")]
     {
