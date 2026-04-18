@@ -160,12 +160,13 @@ macOS-only 타깃. 원본: https://github.com/rullerzhou-afk/clawd-on-desk
 
 ---
 
-## M10. 자동 업데이트 + 패키징
-- [ ] `tauri bundle` 설정: DMG (x64 + arm64)
-- [ ] `tauri-plugin-updater` (GitHub Releases)
-- [ ] 코드 사이닝 / notarization (이건 추후)
-- [ ] GitHub Actions 빌드 워크플로
-- [ ] 커밋: `feat(m10): DMG packaging and auto-updater`
+## M10. 자동 업데이트 + 패키징 ✅ (MVP)
+- [x] `tauri.conf.json` bundle 설정: `targets: ["dmg"]`, `productName: "Clawd"`, `category: Entertainment`, macOS min 11.0
+- [x] `npm run tauri build` 성공 → **Clawd_0.1.0_aarch64.dmg = 24MB** (원본 150MB 대비 6× 감소)
+- [ ] x64 (Intel) universal binary — 현재 aarch64 only
+- [ ] `tauri-plugin-updater` GitHub Releases 연결 — 나중
+- [ ] 코드 사이닝 / notarization — 나중 (developer account 필요)
+- [ ] GitHub Actions 빌드 워크플로 — 나중
 
 ---
 
@@ -206,4 +207,12 @@ macOS-only 타깃. 원본: https://github.com/rullerzhou-afk/clawd-on-desk
 
 ---
 
-**현재 위치**: M1 시작 전. 다음 할 일 → `tauri.conf.json` 수정해서 투명 창 만들기.
+**현재 위치**: M1–M10 MVP 모두 완료 (M5는 기존 훅 자동 연결로 커버). DMG 24MB 생성됨.
+
+**남은 폴리시 (M11+)** — 실사용에서 부족함 느낄 순서대로:
+1. 권한 버블 **suggestion 버튼** ("Always allow Read", "Accept all edits")
+2. 권한 버블 **스택 배치** (다중 요청 동시 처리)
+3. 설정에 **언어 스위치** (i18n 포팅)
+4. 설정에 **에이전트 on/off 토글** (per-agent)
+5. **테마 선택** (theme-loader 전체 포팅 — 제일 큰 작업)
+6. **업데이터 + Universal binary** + GitHub Actions 릴리즈
