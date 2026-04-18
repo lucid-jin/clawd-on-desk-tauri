@@ -10,19 +10,21 @@ macOS-only 타깃. 원본: https://github.com/rullerzhou-afk/clawd-on-desk
 
 ---
 
-## M1. 투명 창에 SVG 렌더 — 리스크 체크
+## M1. 투명 창에 SVG 렌더 — 리스크 체크 ✅
 > WebKit이 픽셀 게를 Electron Chromium과 동일하게 그려주는지가 포팅 전체의 80% 리스크.
 
-- [ ] `tauri.conf.json` — 창 속성: `transparent: true`, `decorations: false`, `alwaysOnTop: true`, `resizable: false`, `skipTaskbar: true`, `width/height`: 원본 기준 (~200×200)
-- [ ] `src-tauri/src/lib.rs` — 창 생성 시 `NSWindow`에 `setIgnoresMouseEvents`/ `LSUIElement` 적용 (objc2 or cocoa crate)
-- [ ] `src/index.html` — 원본 구조 유지, Tauri API 참조 부분만 조정
-- [ ] `src/renderer.js` — `window.tauri` 이벤트 수신으로 state change 받을 placeholder (mock 데이터로)
-- [ ] `npm run tauri dev` 실행 → 투명 창에 idle 게가 뜨는지 확인
-- [ ] 눈알 추적 (`#eyes-js` SVG DOM 조작) 동작 확인 — **핵심 검증**
-- [ ] Idle → thinking → working → happy 애니메이션 전환 수동 테스트
-- [ ] 커밋: `feat(m1): transparent window with SVG renderer`
+- [x] `tauri.conf.json` — 창 속성: `transparent: true`, `decorations: false`, `alwaysOnTop: true`, `resizable: false`, `skipTaskbar: true`, `width/height`: 200×200
+- [x] `tauri.conf.json` + `Cargo.toml` — `macOSPrivateApi: true` + `tauri` 크레이트 `macos-private-api` feature (투명 창 필수)
+- [x] `src/index.html` — 최소 구조, `<object type="image/svg+xml">`로 idle-follow SVG 로드
+- [x] `src/m1-renderer.js` — 눈알 추적 (mouse → #eyes-js/#body-js/#shadow-js transform)
+- [x] `npm run tauri dev` 실행 → 투명 창에 idle 게 렌더 확인
+- [x] **자산 경로 문제 해결**: Tauri dev 서버는 symlink를 안 따라감 → `assets/`와 `themes/`를 `src/` 안으로 이동
+- [ ] NSWindow native 조정 (`ignoresMouseEvents`, `LSUIElement`, `setActivationPolicy("accessory")`) — M4로 미룸
 
-**블로커 발생 시 회피안**: WebKit transparent가 깨지면 → frosted glass 뒷배경 fallback / Chromium 포기하고 계속 Electron
+**학습 메모 (나중에 참조)**
+- 투명 창: `macOSPrivateApi: true` **AND** `tauri` 크레이트에 `macos-private-api` feature 둘 다 필요. 둘 중 하나라도 빠지면 앱이 조용히 종료됨.
+- 자산: Tauri v2 dev 서버(frontendDist 기반)는 symlink 안 따름. 해결책: 자산을 frontendDist 내부로 이동 or 프로덕션은 `bundle.resources` 사용.
+- SVG 로드 실패 증상: WebKit가 `<object type="image/svg+xml">`에 HTML 404 페이지를 파싱하려다 "This page contains the following errors" 분홍 박스 표시.
 
 ---
 
