@@ -49,3 +49,16 @@ window.addEventListener("mousemove", (ev) => {
   const ny = Math.max(-1, Math.min(1, (ev.clientY - cy) / cy));
   applyEyeOffset(nx * MAX_OFFSET, ny * MAX_OFFSET);
 });
+
+// M2: listen for state events from Rust HTTP server
+if (window.__TAURI__ && window.__TAURI__.event) {
+  window.__TAURI__.event.listen("state-change", (evt) => {
+    console.log("[m2] state-change", evt.payload);
+  });
+  window.__TAURI__.event.listen("permission-request", (evt) => {
+    console.log("[m2] permission-request", evt.payload);
+  });
+  console.log("[m2] Tauri event listeners registered");
+} else {
+  console.warn("[m2] window.__TAURI__ not available — set withGlobalTauri:true");
+}

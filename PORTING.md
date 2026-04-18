@@ -28,17 +28,22 @@ macOS-only 타깃. 원본: https://github.com/rullerzhou-afk/clawd-on-desk
 
 ---
 
-## M2. HTTP 서버 (:23333)
+## M2. HTTP 서버 (:23333) ✅
 > 훅 스크립트가 POST 하는 엔드포인트. Rust axum.
 
-- [ ] `src-tauri/Cargo.toml` — `axum`, `tokio`, `serde`, `tower` 추가
-- [ ] `src-tauri/src/server.rs` — `POST /state`, `GET /state` (health), `POST /permission`
-- [ ] 포트 자동 탐색 (23333–23337), `~/.clawd/runtime.json` 기록
-- [ ] `x-clawd-server: clawd-on-desk-tauri` response header로 신원 확인
-- [ ] 수신한 state event를 Tauri `emit`으로 renderer에 전달
-- [ ] TDD 테스트: state payload 파싱 / 포트 탐색 / runtime.json 기록
-- [ ] 수동 확인: `curl -X POST http://127.0.0.1:23333/state -d '{"state":"working"}'` → 게가 working으로 바뀌는지
-- [ ] 커밋: `feat(m2): HTTP server on :23333`
+- [x] `src-tauri/Cargo.toml` — `axum`, `tokio`, `tower`, `dirs` 추가
+- [x] `src-tauri/src/server.rs` — `POST /state`, `GET /state` (health), `POST /permission`
+- [x] 포트 자동 탐색 (23333–23337), `~/.clawd/runtime.json` 기록
+- [x] `x-clawd-server: clawd-on-desk-tauri` response header로 신원 확인
+- [x] 수신한 state event를 Tauri `emit`으로 renderer에 전달
+- [x] `capabilities/default.json` — `pet` 창 + `core:event:default` 권한 추가 (emit/listen 허용)
+- [x] 수동 확인: curl POST → renderer console에 `[m2] state-change` 수신 확인
+- [ ] TDD 테스트 (state payload 파싱) — 나중에 채움
+- [ ] 권한 응답 HTTP long-poll — M6에서 구현
+
+**학습 메모**
+- Tauri v2는 capability 기반 보안. 창 label이 capability의 `windows` 배열에 있어야 event listen 가능. `allow-listen` permission은 `core:event:default`에 포함.
+- 리빌드 시 이전 프로세스 cleanup이 항상 호출되지 않음 → runtime.json에 stale port 남을 수 있음. 해결: 훅 쪽에서 23333-23337 전 범위 scan (M5).
 
 ---
 
