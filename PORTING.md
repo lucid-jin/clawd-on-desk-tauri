@@ -147,11 +147,16 @@ macOS-only 타깃. 원본: https://github.com/rullerzhou-afk/clawd-on-desk
 
 ---
 
-## M9. 설정 창 + prefs
-- [ ] 별도 Tauri Window로 `settings.html` 로드
-- [ ] prefs.json 저장 (원본 `src/prefs.js` 포팅 — 버전 마이그레이션 포함)
-- [ ] 주 언어 (en/ko/zh), 테마 선택, agent 토글
-- [ ] 커밋: `feat(m9): settings window`
+## M9. 설정 창 + prefs ✅ (MVP)
+- [x] `prefs.rs` 재작성: 단일 `Prefs` struct + legacy `window.json` 마이그레이션
+- [x] `src/settings-tauri.html` — macOS System Settings 풍 토글 3개
+- [x] Tauri commands: `get_prefs`, `toggle_dnd_cmd`, `toggle_mini_cmd`, `toggle_dock_cmd`, `open_settings`
+- [x] 트레이 메뉴 "Settings…" → 창 열림 (이미 있으면 focus)
+- [x] 각 토글 → state 변경 + prefs.json 저장 + event 브로드캐스트
+- [x] Capability에 `settings` 창 라벨 추가
+- [ ] 언어 스위치 (en/ko/zh) — 나중
+- [ ] 테마 선택 — 나중 (theme-loader 포팅 후)
+- [ ] agent 개별 on/off 토글 — 나중
 
 ---
 

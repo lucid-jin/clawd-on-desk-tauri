@@ -10,16 +10,26 @@ use crate::state::SharedState;
 pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     let sleep_item = MenuItem::with_id(app, "sleep", "Sleep / Wake (DND)", true, None::<&str>)?;
     let mini_item = MenuItem::with_id(app, "mini_toggle", "Toggle Mini Mode", true, None::<&str>)?;
+    let settings_item = MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
     let show_item = MenuItem::with_id(app, "show", "Show Pet", true, None::<&str>)?;
     let hide_item = MenuItem::with_id(app, "hide", "Hide Pet", true, None::<&str>)?;
     let hide_dock = CheckMenuItem::with_id(app, "hide_dock", "Hide Dock Icon", true, false, None::<&str>)?;
     let sep1 = PredefinedMenuItem::separator(app)?;
     let sep2 = PredefinedMenuItem::separator(app)?;
+    let sep3 = PredefinedMenuItem::separator(app)?;
     let quit = MenuItem::with_id(app, "quit", "Quit Clawd", true, None::<&str>)?;
 
     let menu = Menu::with_items(
         app,
-        &[&sleep_item, &mini_item, &sep1, &show_item, &hide_item, &hide_dock, &sep2, &quit],
+        &[
+            &sleep_item, &mini_item,
+            &sep1,
+            &settings_item,
+            &sep2,
+            &show_item, &hide_item, &hide_dock,
+            &sep3,
+            &quit,
+        ],
     )?;
 
     let icon = tauri::include_image!("../src/assets/tray-iconTemplate.png");
@@ -50,6 +60,23 @@ fn handle_menu_event<R: Runtime>(app: &AppHandle<R>, id: &str) {
                 let _ = app.emit("dnd-changed", new_dnd);
                 // Nudge the state machine to re-emit display
                 state.notify_resolve(app);
+            }
+        }
+        "settings" => {
+            if let Some(win) = app.get_webview_window("settings") {
+                let _ = win.show();
+                let _ = win.set_focus();
+            } else {
+                let _ = tauri::WebviewWindowBuilder::new(
+                    app,
+                    "settings",
+                    tauri::WebviewUrl::App("settings-tauri.html".into()),
+                )
+                .title("Clawd Settings")
+                .inner_size(440.0, 320.0)
+                .resizable(false)
+                .focused(true)
+                .build();
             }
         }
         "mini_toggle" => {
