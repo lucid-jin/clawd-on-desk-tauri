@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager};
 
+use crate::permission;
 use crate::state::{IncomingEvent, SharedState};
 
 const PORT_RANGE: std::ops::Range<u16> = 23333..23338;
@@ -78,13 +79,11 @@ async fn post_permission(
     Json(payload): Json<Value>,
 ) -> impl IntoResponse {
     let _ = state.app.emit("permission-request", &payload);
-    // TODO(m6): hold the connection open until the bubble resolves and return
-    // { behavior: "allow" | "deny" | ... }. For now default deny so AI agents
-    // don't hang.
+    let decision = permission::request(state.app.clone(), payload).await;
     (
         StatusCode::OK,
         [(header::HeaderName::from_static("x-clawd-server"), SERVER_ID)],
-        Json(serde_json::json!({ "behavior": "deny", "note": "m6-pending" })),
+        Json(serde_json::json!({ "behavior": decision.behavior })),
     )
 }
 

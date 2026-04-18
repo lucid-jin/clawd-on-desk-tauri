@@ -1,8 +1,10 @@
+mod permission;
 mod prefs;
 mod server;
 mod state;
 mod tray;
 
+use permission::PendingPermissions;
 use state::SharedState;
 use tauri::{LogicalPosition, Manager, Position};
 
@@ -10,7 +12,9 @@ use tauri::{LogicalPosition, Manager, Position};
 pub fn run() {
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .manage(SharedState::new());
+        .manage(SharedState::new())
+        .manage(PendingPermissions::new())
+        .invoke_handler(tauri::generate_handler![permission::resolve_permission]);
 
     #[cfg(target_os = "macos")]
     {

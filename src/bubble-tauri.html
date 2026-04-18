@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Permission</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  background: transparent;
+  font: 13px -apple-system, BlinkMacSystemFont, "SF Pro Text", Helvetica, Arial, sans-serif;
+  color: #18181b;
+  -webkit-user-select: none;
+  user-select: none;
+  overflow: hidden;
+  -webkit-app-region: no-drag;
+}
+.card, .btn { -webkit-app-region: no-drag; }
+@media (prefers-color-scheme: dark) {
+  body { color: #f4f4f5; }
+  .card { background: #18181b; border-color: rgba(255,255,255,0.1); }
+  .cmd  { background: #09090b; color: #a1a1aa; }
+  .btn  { background: #27272a; color: #f4f4f5; border-color: rgba(255,255,255,0.12); }
+  .btn:hover { background: #3f3f46; }
+  .btn.primary { background: #2563eb; color: #fff; border-color: #2563eb; }
+  .btn.primary:hover { background: #1d4ed8; }
+}
+.card {
+  margin: 8px;
+  padding: 14px 16px 12px;
+  background: #ffffff;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+  max-width: 380px;
+}
+.header {
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: #6b7280;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.tool {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+.cmd {
+  background: #f4f4f5;
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font: 11.5px "SF Mono", Menlo, monospace;
+  color: #374151;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 140px;
+  overflow: auto;
+  margin-bottom: 10px;
+}
+.row { display: flex; gap: 8px; justify-content: flex-end; }
+.btn {
+  padding: 8px 18px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #52525b;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  pointer-events: auto !important;
+  position: relative;
+  z-index: 10;
+}
+.btn:hover { background: #f9fafb; border-color: #9ca3af; }
+.btn.primary {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+}
+.btn.primary:hover { background: #1d4ed8; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="header">Permission request</div>
+  <div class="tool" id="tool">…</div>
+  <div class="cmd" id="cmd"></div>
+  <div class="row">
+    <button class="btn" id="deny">Deny</button>
+    <button class="btn primary" id="allow">Allow</button>
+  </div>
+</div>
+<script>
+(function() {
+  const params = new URLSearchParams(location.search);
+  const id = params.get("id");
+  const payloadStr = params.get("payload");
+  let payload = {};
+  try { payload = JSON.parse(decodeURIComponent(payloadStr || "{}")); } catch {}
+
+  document.getElementById("tool").textContent = payload.tool_name || "Unknown tool";
+  const input = payload.tool_input;
+  let cmd = "";
+  if (input && typeof input === "object") {
+    if (input.command) cmd = input.command;
+    else if (input.file_path) cmd = input.file_path + (input.content ? "\n\n" + input.content : "");
+    else cmd = JSON.stringify(input, null, 2);
+  } else if (typeof input === "string") {
+    cmd = input;
+  }
+  document.getElementById("cmd").textContent = cmd || "(no details)";
+
+  async function decide(behavior) {
+    try {
+      await window.__TAURI__.core.invoke("resolve_permission", { id, decision: behavior });
+    } catch (err) {
+      console.warn("[bubble] resolve_permission failed", err);
+    }
+    try {
+      const w = window.__TAURI__.webviewWindow.getCurrentWebviewWindow();
+      await w.close();
+    } catch (err) {
+      console.warn("[bubble] close failed", err);
+    }
+  }
+
+  document.getElementById("allow").addEventListener("click", () => decide("allow"));
+  document.getElementById("deny").addEventListener("click", () => decide("deny"));
+
+  // Intentionally no keyboard shortcut — the original Clawd binds Ctrl+Shift+Y/N
+  // at the global level (not window-level Enter/Esc), because stray keystrokes
+  // from the parent window used to auto-resolve bubbles.
+})();
+</script>
+</body>
+</html>

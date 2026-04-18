@@ -96,16 +96,25 @@ macOS-only 타깃. 원본: https://github.com/rullerzhou-afk/clawd-on-desk
 
 ---
 
-## M6. 권한 버블 창
-> 원본 `src/permission.js` + `src/bubble.html` 포팅.
+## M6. 권한 버블 창 ✅
+> 원본 `src/permission.js` + `src/bubble.html` 포팅. MVP는 단일 창 + Allow/Deny만.
 
-- [ ] `POST /permission` → 새 Tauri Window 생성 (transparent, small, always-on-top)
-- [ ] `bubble.html` 재사용 (이미 `src/`에 복사됨)
-- [ ] Allow / Deny / Suggestion 버튼 → HTTP response
-- [ ] 여러 개 스택 쌓기 (우하단에서 위로)
-- [ ] 글로벌 단축키 `Ctrl+Shift+Y`/`Ctrl+Shift+N`
-- [ ] 클라이언트 disconnect 감지 (자동 dismiss)
-- [ ] 커밋: `feat(m6): permission bubble`
+- [x] `src-tauri/src/permission.rs` — PendingPermissions + oneshot channel + request() async fn
+- [x] `src/bubble-tauri.html` — 미니멀 UI (Allow/Deny, 다크/라이트 모드 대응)
+- [x] `POST /permission` → ID 할당 → bubble 창 생성 → 결정 대기 → HTTP response
+- [x] Rust side 강제 close (JS close 실패해도 보장)
+- [x] Capability: `core:window:allow-close`, `allow-destroy` 추가
+- [x] Window builder: `accept_first_mouse(true) + focused(true)` (투명 창 클릭 이슈 해결)
+- [ ] 여러 개 스택 쌓기 — 현재는 새 창이 기본 위치에 뜸, M8 미니 모드 후 좌표 계산 추가 예정
+- [ ] 글로벌 단축키 `Ctrl+Shift+Y`/`Ctrl+Shift+N` — 나중에
+- [ ] 클라이언트 disconnect 감지 (자동 dismiss) — axum `on_disconnect`로 구현 가능, 향후
+
+**학습 메모**
+- `WebviewWindowBuilder::new(app, label, url)`은 label을 `into()`로 받음 → clone 필요 시 명시.
+- `allow-close`는 `core:window:default`에 포함되지 않음. 명시적 추가 필수.
+- `.focused(true)` + `.accept_first_mouse(true)` 조합이 macOS 투명 프레임리스 창의 키보드/클릭 문제 해결.
+- Enter/Esc 같은 window-level keydown 핸들러는 **부모 창에서 타이핑한 키가 유입**되어 의도치 않게 발동될 수 있음 (원본 Clawd가 글로벌 단축키만 쓰는 이유). 제거.
+- 버블 HTML에서 `webviewWindow.getCurrentWebviewWindow().close()` 권한 호출로 자신 창 닫기. Rust 쪽도 백업으로 닫아줌 (belt & suspenders).
 
 ---
 
