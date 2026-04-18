@@ -1,0 +1,161 @@
+# Clawd → Tauri 포팅 로드맵
+
+macOS-only 타깃. 원본: https://github.com/rullerzhou-afk/clawd-on-desk
+
+**진행 원칙**
+- 위에서 아래로, 체크박스 기반. 블로커 만나면 바로 이 문서에 `⚠️`로 표시
+- 각 마일스톤 끝에 `npm run tauri dev`로 수동 확인 → 커밋
+- Rust 코드는 TDD (red → green → refactor). 테스트 가능한 순수 로직부터.
+- 원본 파일 참조: `~/clawd-on-desk/src/*.js` (readonly, 참고용)
+
+---
+
+## M1. 투명 창에 SVG 렌더 — 리스크 체크
+> WebKit이 픽셀 게를 Electron Chromium과 동일하게 그려주는지가 포팅 전체의 80% 리스크.
+
+- [ ] `tauri.conf.json` — 창 속성: `transparent: true`, `decorations: false`, `alwaysOnTop: true`, `resizable: false`, `skipTaskbar: true`, `width/height`: 원본 기준 (~200×200)
+- [ ] `src-tauri/src/lib.rs` — 창 생성 시 `NSWindow`에 `setIgnoresMouseEvents`/ `LSUIElement` 적용 (objc2 or cocoa crate)
+- [ ] `src/index.html` — 원본 구조 유지, Tauri API 참조 부분만 조정
+- [ ] `src/renderer.js` — `window.tauri` 이벤트 수신으로 state change 받을 placeholder (mock 데이터로)
+- [ ] `npm run tauri dev` 실행 → 투명 창에 idle 게가 뜨는지 확인
+- [ ] 눈알 추적 (`#eyes-js` SVG DOM 조작) 동작 확인 — **핵심 검증**
+- [ ] Idle → thinking → working → happy 애니메이션 전환 수동 테스트
+- [ ] 커밋: `feat(m1): transparent window with SVG renderer`
+
+**블로커 발생 시 회피안**: WebKit transparent가 깨지면 → frosted glass 뒷배경 fallback / Chromium 포기하고 계속 Electron
+
+---
+
+## M2. HTTP 서버 (:23333)
+> 훅 스크립트가 POST 하는 엔드포인트. Rust axum.
+
+- [ ] `src-tauri/Cargo.toml` — `axum`, `tokio`, `serde`, `tower` 추가
+- [ ] `src-tauri/src/server.rs` — `POST /state`, `GET /state` (health), `POST /permission`
+- [ ] 포트 자동 탐색 (23333–23337), `~/.clawd/runtime.json` 기록
+- [ ] `x-clawd-server: clawd-on-desk-tauri` response header로 신원 확인
+- [ ] 수신한 state event를 Tauri `emit`으로 renderer에 전달
+- [ ] TDD 테스트: state payload 파싱 / 포트 탐색 / runtime.json 기록
+- [ ] 수동 확인: `curl -X POST http://127.0.0.1:23333/state -d '{"state":"working"}'` → 게가 working으로 바뀌는지
+- [ ] 커밋: `feat(m2): HTTP server on :23333`
+
+---
+
+## M3. 상태 머신
+> 원본 `src/state.js` (1089줄) 포팅. 가장 로직 복잡한 부분.
+
+- [ ] `src-tauri/src/state.rs` — Session struct, SessionMap, Priority enum
+- [ ] `resolve_display_state()` — 우선순위: error(8) > notification(7) > sweeping(6) > attention(5) > carrying/juggling(4) > working(3) > thinking(2) > idle(1) > sleeping(0)
+- [ ] 최소 표시 시간 (error 5s, attention 4s, carrying 3s, sweeping 2s, working/thinking 1s)
+- [ ] 자동 회귀 (attention/error/sweeping/notification/carrying → idle)
+- [ ] working 서브 애니메이션: 1 세션 → typing, 2 → juggling, 3+ → building
+- [ ] 멀티 세션 추적 (agent_id별)
+- [ ] TDD 테스트 (전부 순수 로직이라 테스트하기 좋음)
+- [ ] 커밋: `feat(m3): state machine with priority resolver`
+
+---
+
+## M4. 시스템 트레이 + 메뉴
+- [ ] Tauri `tray-icon` API 사용
+- [ ] 트레이 아이콘 (`assets/tray-icon.png`)
+- [ ] 메뉴: Sleep/Wake, Mini Mode, Settings, Show Dock, Language, Quit
+- [ ] 우클릭 메뉴 (render창에서)
+- [ ] `app.setActivationPolicy("accessory")` macOS-specific (objc2)
+- [ ] 커밋: `feat(m4): tray icon and context menu`
+
+---
+
+## M5. 훅 자동 등록
+- [ ] `~/.claude/settings.json`에 `hooks/clawd-hook.js` 경로 append-only 주입
+- [ ] `registerHooks()` 앱 시작 시 자동 실행
+- [ ] `/install:claude-hooks` CLI 커맨드 (원본과 호환)
+- [ ] 다른 에이전트 (codex/cursor/gemini/opencode) 훅 등록 함수도 동일 패턴
+- [ ] 커밋: `feat(m5): auto-register agent hooks`
+
+---
+
+## M6. 권한 버블 창
+> 원본 `src/permission.js` + `src/bubble.html` 포팅.
+
+- [ ] `POST /permission` → 새 Tauri Window 생성 (transparent, small, always-on-top)
+- [ ] `bubble.html` 재사용 (이미 `src/`에 복사됨)
+- [ ] Allow / Deny / Suggestion 버튼 → HTTP response
+- [ ] 여러 개 스택 쌓기 (우하단에서 위로)
+- [ ] 글로벌 단축키 `Ctrl+Shift+Y`/`Ctrl+Shift+N`
+- [ ] 클라이언트 disconnect 감지 (자동 dismiss)
+- [ ] 커밋: `feat(m6): permission bubble`
+
+---
+
+## M7. 드래그 / 클릭 / 이중 창
+- [ ] Pointer Capture API로 드래그 (웹뷰에서 가능, 원본과 동일)
+- [ ] 더블클릭 → poke 반응, 4연타 → flail 반응
+- [ ] **이중 창 구조 필요한지 맥에서 테스트** — click-through만 `setIgnoresMouseEvents`로 토글 가능하면 단일 창으로 OK
+- [ ] 단일 창 불가 시 hit window 별도 생성
+- [ ] 커밋: `feat(m7): drag and click reactions`
+
+---
+
+## M8. 미니 모드
+- [ ] 우측 엣지 스냅 (SNAP_TOLERANCE=30px)
+- [ ] 크랩 워크 애니메이션 (이미 `mini-crabwalk.svg` 존재)
+- [ ] 포물선 점프 (`animateWindowParabola`)
+- [ ] Peek on hover
+- [ ] 커밋: `feat(m8): mini mode`
+
+---
+
+## M9. 설정 창 + prefs
+- [ ] 별도 Tauri Window로 `settings.html` 로드
+- [ ] prefs.json 저장 (원본 `src/prefs.js` 포팅 — 버전 마이그레이션 포함)
+- [ ] 주 언어 (en/ko/zh), 테마 선택, agent 토글
+- [ ] 커밋: `feat(m9): settings window`
+
+---
+
+## M10. 자동 업데이트 + 패키징
+- [ ] `tauri bundle` 설정: DMG (x64 + arm64)
+- [ ] `tauri-plugin-updater` (GitHub Releases)
+- [ ] 코드 사이닝 / notarization (이건 추후)
+- [ ] GitHub Actions 빌드 워크플로
+- [ ] 커밋: `feat(m10): DMG packaging and auto-updater`
+
+---
+
+## 메모리 검증 (포팅 완료 시)
+- [ ] `ps -o pid,rss -p <pid>` 측정
+- [ ] 목표: idle 60MB 이하 (원본 650MB 대비 10배 감소)
+
+---
+
+## 원본과의 차이 의도된 것들
+- Windows 지원 버림 → `WS_EX_NOACTIVATE`, `koffi` FFI, PowerShell helper 전부 제거
+- 이중 창 (`hitWin`)은 Windows 포커스 버그 우회였음. 맥에서 필요한지 M7에서 검증 후 결정.
+- `electron-updater` → `tauri-plugin-updater`
+- `electron-builder` → `tauri bundle`
+- Git 모드 자동 업데이트 (원본) → 유지 가능 (Tauri와 무관)
+
+---
+
+## 참조 매핑 (원본 → Tauri)
+| 원본 | Tauri 포지션 |
+|---|---|
+| `src/main.js` (2815줄) | `src-tauri/src/lib.rs` + 여러 모듈로 분리 |
+| `src/server.js` | `src-tauri/src/server.rs` (axum) |
+| `src/state.js` | `src-tauri/src/state.rs` |
+| `src/permission.js` | `src-tauri/src/permission.rs` |
+| `src/mini.js` | `src-tauri/src/mini.rs` |
+| `src/focus.js` (PowerShell/koffi) | 삭제 (Windows 전용) |
+| `src/mac-window.js` | `src-tauri/src/macos.rs` (objc2) |
+| `src/login-item.js` | `src-tauri/src/autostart.rs` |
+| `src/log-rotate.js` | `src-tauri/src/log.rs` |
+| `src/prefs.js` | `src-tauri/src/prefs.rs` (serde_json) |
+| `src/updater.js` | tauri-plugin-updater |
+| `src/menu.js` | `src-tauri/src/menu.rs` (tauri tray/menu API) |
+| `src/tick.js` (50ms 루프) | Rust tokio interval |
+| `src/renderer.js`, HTML, CSS | **그대로** |
+| `src/i18n.js`, `theme-loader.js`, `animation-cycle.js` | **그대로** |
+| `hooks/*.js` | **그대로** (외부 스크립트) |
+
+---
+
+**현재 위치**: M1 시작 전. 다음 할 일 → `tauri.conf.json` 수정해서 투명 창 만들기.
