@@ -10,7 +10,9 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
+
+use crate::state::{IncomingEvent, SharedState};
 
 const PORT_RANGE: std::ops::Range<u16> = 23333..23338;
 const SERVER_ID: &str = "clawd-on-desk-tauri";
@@ -47,11 +49,23 @@ async fn health() -> impl IntoResponse {
 
 async fn post_state(
     State(state): State<ServerState>,
-    Json(payload): Json<StateEvent>,
+    Json(payload): Json<Value>,
 ) -> impl IntoResponse {
-    if let Err(err) = state.app.emit("state-change", &payload) {
-        eprintln!("[server] emit state-change failed: {err}");
+    // Relay raw event for debugging visibility in M1 console logs
+    let _ = state.app.emit("state-change", &payload);
+
+    // Parse into typed incoming event and route through state machine
+    match serde_json::from_value::<IncomingEvent>(payload) {
+        Ok(incoming) => {
+            if let Some(sm_state) = state.app.try_state::<SharedState>() {
+                sm_state.handle_incoming(&state.app, incoming);
+            }
+        }
+        Err(err) => {
+            eprintln!("[server] state payload parse error: {err}");
+        }
     }
+
     (
         StatusCode::OK,
         [(header::HeaderName::from_static("x-clawd-server"), SERVER_ID)],

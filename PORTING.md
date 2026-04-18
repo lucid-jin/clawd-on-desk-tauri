@@ -47,17 +47,23 @@ macOS-only 타깃. 원본: https://github.com/rullerzhou-afk/clawd-on-desk
 
 ---
 
-## M3. 상태 머신
-> 원본 `src/state.js` (1089줄) 포팅. 가장 로직 복잡한 부분.
+## M3. 상태 머신 ✅
+> 원본 `src/state.js` (1089줄) 중 핵심 로직만 포팅. 테마/SVG 매핑은 renderer 쪽이므로 제외.
 
-- [ ] `src-tauri/src/state.rs` — Session struct, SessionMap, Priority enum
-- [ ] `resolve_display_state()` — 우선순위: error(8) > notification(7) > sweeping(6) > attention(5) > carrying/juggling(4) > working(3) > thinking(2) > idle(1) > sleeping(0)
-- [ ] 최소 표시 시간 (error 5s, attention 4s, carrying 3s, sweeping 2s, working/thinking 1s)
-- [ ] 자동 회귀 (attention/error/sweeping/notification/carrying → idle)
-- [ ] working 서브 애니메이션: 1 세션 → typing, 2 → juggling, 3+ → building
-- [ ] 멀티 세션 추적 (agent_id별)
-- [ ] TDD 테스트 (전부 순수 로직이라 테스트하기 좋음)
-- [ ] 커밋: `feat(m3): state machine with priority resolver`
+- [x] `src-tauri/src/state.rs` — Session struct, StateMachine, Priority map, IncomingEvent, SharedState
+- [x] `resolve_display_state()` — 우선순위 기반 최고 상태 선택
+- [x] 최소 표시 시간 (priority 낮은 상태로 바뀔 때만 가드)
+- [x] 자동 회귀 timer (tokio::spawn + clear_oneshot)
+- [x] working 서브: 1→typing, 2→juggling, 3+→building
+- [x] juggling 서브: subagent 1→juggling, 2+→conducting
+- [x] 멀티 세션 추적 (agent_id:session_id 키)
+- [x] 단위 테스트 8/8 통과
+- [x] 실제 Claude Code 훅 live 이벤트로 검증 (기존 Electron Clawd 훅이 runtime.json 읽어서 자동 연결됨)
+
+**학습 메모**
+- Tauri 2의 `manage(T)` + `try_state::<T>()`로 상태 공유. Mutex는 기본 std (tokio Mutex는 필요 없음 — 락 구간이 짧음).
+- auto-return timer는 `tauri::async_runtime::spawn` + `tokio::time::sleep` 조합. tokio feature `macros`가 없으면 `#[tokio::test]` 안 되지만 필요 없음.
+- 원본이 가진 기능 중 M3에서 뺀 것: 테마 별 SVG 매핑(renderer 쪽), sleep 시퀀스(tick loop 필요, M7+), startup recovery, stale cleanup, session badge, i18n 이벤트 라벨 — 필요할 때마다 추가.
 
 ---
 
